@@ -1,94 +1,114 @@
 package com.example.myapplication
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.text.TextUtils
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBox
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewScreenSizes
-import com.example.myapplication.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var editTextInput: EditText
+    private lateinit var editTextPhone: EditText
+    private lateinit var btnOpenSecondActivity: Button
+    private lateinit var btnCallFriend: Button
+    private lateinit var btnShareText: Button
+    private lateinit var textViewError: TextView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            MyApplicationTheme {
-                MyApplicationApp()
+        setContentView(R.layout.activity_main)
+
+        initViews()
+        setupClickListeners()
+    }
+
+    private fun initViews() {
+        editTextInput = findViewById(R.id.editTextInput)
+        editTextPhone = findViewById(R.id.editTextPhone)
+        btnOpenSecondActivity = findViewById(R.id.btnOpenSecondActivity)
+        btnCallFriend = findViewById(R.id.btnCallFriend)
+        btnShareText = findViewById(R.id.btnShareText)
+        textViewError = findViewById(R.id.textViewError)
+    }
+
+    private fun setupClickListeners() {
+        btnOpenSecondActivity.setOnClickListener {
+            val text = editTextInput.text.toString().trim()
+
+            if (validateInput(text)) {
+                val intent = Intent(this, SecondActivity::class.java)
+                intent.putExtra("EXTRA_TEXT", text)
+                startActivity(intent)
+                hideError()
+            } else {
+                showError("Введите текст для передачи")
+            }
+        }
+
+        btnCallFriend.setOnClickListener {
+            val phoneNumber = editTextPhone.text.toString().trim()
+
+            if (validatePhoneNumber(phoneNumber)) {
+                val intent = Intent(Intent.ACTION_DIAL).apply {
+                    data = Uri.parse("tel:$phoneNumber")
+                }
+
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    hideError()
+                } else {
+                    showError("Приложение для звонков не найдено")
+                }
+            } else {
+                showError("Введите корректный номер телефона")
+            }
+        }
+
+        btnShareText.setOnClickListener {
+            val text = editTextInput.text.toString().trim()
+
+            if (validateInput(text)) {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, text)
+                }
+
+                val shareIntent = Intent.createChooser(intent, "Поделиться через")
+
+                if (shareIntent.resolveActivity(packageManager) != null) {
+                    startActivity(shareIntent)
+                    hideError()
+                } else {
+                    showError("Нет приложений для обмена текстом")
+                }
+            } else {
+                showError("Введите текст для обмена")
             }
         }
     }
-}
 
-@PreviewScreenSizes
-@Composable
-fun MyApplicationApp() {
-    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
-
-    NavigationSuiteScaffold(
-        navigationSuiteItems = {
-            AppDestinations.entries.forEach {
-                item(
-                    icon = {
-                        Icon(
-                            it.icon,
-                            contentDescription = it.label
-                        )
-                    },
-                    label = { Text(it.label) },
-                    selected = it == currentDestination,
-                    onClick = { currentDestination = it }
-                )
-            }
-        }
-    ) {
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            Greeting(
-                name = "Android",
-                modifier = Modifier.padding(innerPadding)
-            )
-        }
+    private fun validateInput(text: String): Boolean {
+        return !TextUtils.isEmpty(text) && text.length >= 1
     }
-}
 
-enum class AppDestinations(
-    val label: String,
-    val icon: ImageVector,
-) {
-    HOME("Home", Icons.Default.Home),
-    FAVORITES("Favorites", Icons.Default.Favorite),
-    PROFILE("Profile", Icons.Default.AccountBox),
-}
+    private fun validatePhoneNumber(phone: String): Boolean {
+        if (TextUtils.isEmpty(phone)) return false
+        val digitsOnly = phone.replace("\\D".toRegex(), "")
+        return digitsOnly.length >= 7
+    }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+    private fun showError(message: String) {
+        textViewError.text = message
+        textViewError.visibility = TextView.VISIBLE
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MyApplicationTheme {
-        Greeting("Android")
+    private fun hideError() {
+        textViewError.visibility = TextView.GONE
     }
 }
